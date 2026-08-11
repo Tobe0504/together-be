@@ -14,6 +14,13 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// The line below is a compiler directive, NOT a comment — it is what pulls
+// the .sql files into the binary. Deleting it still compiles: migrationsFS
+// just becomes an empty filesystem, and the server dies at startup with
+// "open migrations: file does not exist". Any tool that strips comments
+// must be configured to leave //go: directives alone.
+//
+//go:embed migrations/*.sql
 var migrationsFS embed.FS
 
 func Open(ctx context.Context, target string) (*sql.DB, error) {
