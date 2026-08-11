@@ -22,7 +22,15 @@ services:
     ports:
       - "8080:8080"
     environment:
-      TOGETHER_MODE: online
+      # This compose file is the "run it on my own machine" path, so the
+      # server really is on the same network as its guests. Render builds
+      # the Dockerfile directly and never reads this, so it stays online
+      # there and hands out its public URL instead.
+      TOGETHER_MODE: local
+      # The container can only see its own 172.x address, never the host's,
+      # so the LAN address has to be passed in. dev-up.sh keeps LAN_IP
+      # current in .env.
+      TOGETHER_LAN_ADDR: ${LAN_IP:-}:8080
       PORT: "8080"
       JWT_SECRET: dev-insecure-secret-change-me
       LIVEKIT_URL: ${LIVEKIT_URL:-ws://${LAN_IP:-127.0.0.1}:7880}

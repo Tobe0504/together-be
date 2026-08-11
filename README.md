@@ -407,6 +407,25 @@ Create a project at [cloud.livekit.io](https://cloud.livekit.io) and put its
 online rooms fall back to the self-hosted container from
 `docker-compose.yml`, which is not reachable from a deployed frontend.
 
+### Local rooms on a deployed server
+
+Invite links and QR codes point at the **page's own origin** (your Vercel
+URL) unless the server is explicitly told it sits on the guests' network.
+
+That's what `TOGETHER_MODE=local` means. Leave it unset in production.
+With it set, the server also needs `TOGETHER_LAN_ADDR=<host-ip>:<port>`
+when running in a container — a container can only see its own `172.x`
+address and has no way to discover the host's. Getting this wrong is how
+QR codes end up encoding an unreachable internal IP.
+
+`docker compose` sets both for you (see `docker-compose.yml`), because
+that path is by definition running on your own machine.
+
+Note the honesty limit: a local room whose signaling goes through a
+deployed server still needs internet to *join* — only the media stays
+peer-to-peer on the LAN. Zero-internet rooms require running the server
+on the local network yourself.
+
 ### What deploying does not fix
 
 **Local-mode rooms still require both devices on the same network.** They

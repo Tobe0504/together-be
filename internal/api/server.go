@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/tobenna/together/server/internal/auth"
@@ -74,7 +75,30 @@ func (s *Server) syncRoomRoles(ctx context.Context, roomID string) {
 	}()
 }
 
+// LANAddrHint returns an address guests can reach this server at on the
+// local network, or "" when there isn't one.
+//
+// Gated on --mode=local because PrimaryLANIP only knows how to find a
+// private-range address on this machine — it cannot tell whether that
+// address means anything to anyone else. In a hosted container it happily
+// returns the container's own internal IP (10.x.x.x on Render), which then
+// ended up encoded into invite QR codes that no device could ever reach.
+//
+// The mode flag is the operator stating "this server sits on the same
+// network as its guests", which is the only place that claim can honestly
+// come from. Without it, invites fall back to the page's own origin (see
+// the frontend's joinUrlFor) — the public URL, which is correct for a
+// deployment.
 func (s *Server) LANAddrHint() string {
+	if s.Cfg.Mode != "local" {
+		return ""
+	}
+	// An explicitly configured address always wins. Inside a container
+	// auto-detection can only ever find the container's own address, so
+	// this is the only correct source there.
+	if s.Cfg.LANAddr != "" && !strings.HasPrefix(s.Cfg.LANAddr, ":") {
+		return s.Cfg.LANAddr
+	}
 	ip, err := discovery.PrimaryLANIP()
 	if err != nil || ip == "" {
 		return ""

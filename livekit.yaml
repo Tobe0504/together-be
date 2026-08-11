@@ -11,7 +11,7 @@ port: 7880
 rtc:
   tcp_port: 7881
   udp_port: 7882 # single muxed UDP port for all RTC media — keeps Docker port mapping simple
-  node_ip: 192.168.100.235 # this machine's current LAN IP — see README, must be updated whenever it changes (unlike the frontend's API base, this can't self-detect: it's read by the LiveKit container, not app code)
+  node_ip: 192.168.213.153 # this machine's current LAN IP — see README, must be updated whenever it changes (unlike the frontend's API base, this can't self-detect: it's read by the LiveKit container, not app code)
   use_external_ip: false
 
 keys:

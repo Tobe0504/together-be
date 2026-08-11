@@ -7,17 +7,18 @@ import (
 )
 
 type Config struct {
-	Mode string 
-	Bind string
-	Port string
-	DBPath      string
-	DatabaseURL string
-	JWTSecret string
+	Mode             string
+	Bind             string
+	Port             string
+	DBPath           string
+	DatabaseURL      string
+	JWTSecret        string
 	LiveKitURL       string
 	LiveKitAPIKey    string
 	LiveKitAPISecret string
-	CORSOrigins []string
-	StaticDir string
+	CORSOrigins      []string
+	LANAddr          string
+	StaticDir        string
 }
 
 func Load() Config {
@@ -26,6 +27,7 @@ func Load() Config {
 	port := flag.String("port", envOr("PORT", "8080"), "HTTP port")
 	dbPath := flag.String("db", envOr("TOGETHER_DB_PATH", "together.db"), "path to sqlite database file")
 	databaseURL := flag.String("database-url", envOr("DATABASE_URL", ""), "libsql:// URL for a remote Turso database (overrides --db)")
+	lanAddr := flag.String("lan-addr", envOr("TOGETHER_LAN_ADDR", ""), "host:port guests reach this server at on the LAN (containers must set this)")
 	staticDir := flag.String("static", envOr("TOGETHER_STATIC_DIR", ""), "path to built frontend static assets (serves them for local mode)")
 	flag.Parse()
 
@@ -48,8 +50,9 @@ func Load() Config {
 		LiveKitURL:       envOr("LIVEKIT_URL", "ws://127.0.0.1:7880"),
 		LiveKitAPIKey:    envOr("LIVEKIT_API_KEY", "devkey"),
 		LiveKitAPISecret: envOr("LIVEKIT_API_SECRET", "devsecret1234567890devsecret"),
-		CORSOrigins: strings.Split(envOr("CORS_ORIGIN", "http://localhost:3000"), ","),
-		StaticDir:   *staticDir,
+		CORSOrigins:      splitAndTrim(envOr("CORS_ORIGIN", "http://localhost:3000")),
+		LANAddr:          *lanAddr,
+		StaticDir:        *staticDir,
 	}
 }
 
