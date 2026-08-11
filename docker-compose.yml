@@ -1,0 +1,33 @@
+name: together
+
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: together-livekit
+    command: --config /etc/livekit.yaml
+    restart: unless-stopped
+    ports:
+      - "7880:7880/tcp" # HTTP + WebSocket signaling
+      - "7881:7881/tcp" # TCP fallback for restrictive networks
+      - "7882:7882/udp" # muxed RTC media (single port, see livekit.yaml)
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+
+  backend:
+    build: .
+    container_name: together-backend
+    restart: unless-stopped
+    depends_on:
+      - livekit
+    ports:
+      - "8080:8080"
+    environment:
+      TOGETHER_MODE: online
+      PORT: "8080"
+      JWT_SECRET: dev-insecure-secret-change-me
+      LIVEKIT_URL: ${LIVEKIT_URL:-ws://${LAN_IP:-127.0.0.1}:7880}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-devsecret1234567890devsecret}
+      CORS_ORIGIN: http://localhost:3000,${TUNNEL_FRONTEND_ORIGIN:-}
+    volumes:
+      - ./together.db:/app/together.db

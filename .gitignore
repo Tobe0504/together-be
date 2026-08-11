@@ -1,6 +1,5 @@
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
+# GitHub's standard Go template, plus this project's own entries.
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -24,9 +23,23 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
-.env
+# --- Together ---------------------------------------------------------
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# Build output
+together-server
+bin/
+tmp/
+
+# SQLite database + its write-ahead log sidecars — runtime data, never committed
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Secrets. .env holds LIVEKIT_API_SECRET and JWT_SECRET; .env.example is the
+# committed template and is deliberately kept.
+.env
+.env.*
+!.env.example
+
+.DS_Store
