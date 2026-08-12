@@ -20,7 +20,6 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
 }
 
-
 func writeInternalError(w http.ResponseWriter, err error) {
 	log.Printf("internal error: %v", err)
 	writeError(w, http.StatusInternalServerError, "Something went wrong on our end.")
@@ -42,6 +41,8 @@ func mapServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusGone, "This room has ended.")
 	case errors.Is(err, rooms.ErrRoomExpired):
 		writeError(w, http.StatusGone, "This room has expired.")
+	case errors.Is(err, rooms.ErrAlreadyPresenting):
+		writeError(w, http.StatusConflict, "Someone else is presenting right now.")
 	case errors.Is(err, rooms.ErrRoomFull):
 		writeError(w, http.StatusConflict,
 			"This room is full. Local rooms are limited to 12 people because each person's screen is sent directly to every other device.")

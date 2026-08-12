@@ -11,7 +11,7 @@ import (
 
 type createRoomRequest struct {
 	Name            string `json:"name"`
-	Mode            string `json:"mode"` 
+	Mode            string `json:"mode"`
 	AccessProtected bool   `json:"accessProtected"`
 	PIN             string `json:"pin"`
 	DisplayName     string `json:"displayName"`
@@ -151,10 +151,9 @@ func (s *Server) setPaused(w http.ResponseWriter, r *http.Request, paused bool) 
 	writeJSON(w, http.StatusOK, map[string]bool{"paused": paused})
 }
 
-
 func (s *Server) handleScreenStarted(w http.ResponseWriter, r *http.Request) {
 	claims := auth.RoomClaimsFromContext(r.Context())
-	if err := s.Rooms.SetPresenting(r.Context(), claims.RoomID, claims.Role, true); err != nil {
+	if err := s.Rooms.StartPresenting(r.Context(), claims.RoomID, claims.ParticipantID, claims.Role); err != nil {
 		mapServiceError(w, err)
 		return
 	}
@@ -170,7 +169,7 @@ func (s *Server) handleShareFile(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleScreenStopped(w http.ResponseWriter, r *http.Request) {
 	claims := auth.RoomClaimsFromContext(r.Context())
-	if err := s.Rooms.SetPresenting(r.Context(), claims.RoomID, claims.Role, false); err != nil {
+	if err := s.Rooms.StopPresenting(r.Context(), claims.RoomID, claims.ParticipantID); err != nil {
 		mapServiceError(w, err)
 		return
 	}

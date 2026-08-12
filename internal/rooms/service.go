@@ -12,19 +12,20 @@ import (
 )
 
 var (
-	ErrForbidden     = errors.New("forbidden")
-	ErrNotFound      = db.ErrNotFound
-	ErrRoomEnded     = errors.New("room has ended")
-	ErrRoomExpired   = errors.New("room has expired")
-	ErrBadAccessCode = errors.New("incorrect access code")
-	ErrCodeCollision = errors.New("could not allocate a unique code")
-	ErrRoomFull      = errors.New("room is full")
+	ErrForbidden         = errors.New("forbidden")
+	ErrNotFound          = db.ErrNotFound
+	ErrRoomEnded         = errors.New("room has ended")
+	ErrRoomExpired       = errors.New("room has expired")
+	ErrBadAccessCode     = errors.New("incorrect access code")
+	ErrCodeCollision     = errors.New("could not allocate a unique code")
+	ErrRoomFull          = errors.New("room is full")
+	ErrAlreadyPresenting = errors.New("someone else is already presenting")
 )
 
 const (
-	roomTTL    = 24 * time.Hour
-	sessionTTL = 24 * time.Hour
-	maxCodeTry = 8
+	roomTTL              = 24 * time.Hour
+	sessionTTL           = 24 * time.Hour
+	maxCodeTry           = 8
 	maxLocalParticipants = 12
 )
 
@@ -96,9 +97,9 @@ func (s *Service) CreateRoom(ctx context.Context, in CreateRoomInput) (*JoinResu
 		}
 		if err := s.Store.CreateRoom(ctx, r); err != nil {
 			if db.IsUniqueViolation(err) {
-				continue 
+				continue
 			}
-	
+
 			return nil, err
 		}
 		room = r
@@ -215,6 +216,12 @@ func (s *Service) mintSession(ctx context.Context, room *models.Room, p *models.
 }
 
 func (s *Service) LeaveRoom(ctx context.Context, participantID string) error {
+	// Free the stage first: someone who closes their tab mid-share would
+	// otherwise hold the presenter slot forever, permanently blocking
+	// everyone else in a room that looks idle.
+	if err := s.Store.ReleasePresenterForParticipant(ctx, participantID); err != nil {
+		return err
+	}
 	return s.Store.UpdateParticipantStatus(ctx, participantID, models.ParticipantDisconnected)
 }
 
@@ -243,20 +250,43 @@ func (s *Service) SetPaused(ctx context.Context, roomID string, actorRole models
 	return s.Store.UpdateRoomStatus(ctx, roomID, status)
 }
 
-func (s *Service) SetPresenting(ctx context.Context, roomID string, actorRole models.ParticipantRole, presenting bool) error {
+// StartPresenting claims the room's single presenter slot.
+//
+// One live screen at a time is a deliberate product constraint, not a
+// technical one: the stage shows a single source, so a second simultaneous
+// share would simply replace the first in everyone's view with no
+// indication of why. Enforced here rather than in the UI because the UI
+// can only ever be a hint — two clients can race, and a client can lie.
+func (s *Service) StartPresenting(ctx context.Context, roomID, participantID string, actorRole models.ParticipantRole) error {
 	if !Can(actorRole, ActionStartPresent) {
 		return ErrForbidden
 	}
-	status := models.RoomStatusWaiting
-	if presenting {
-		status = models.RoomStatusPresenting
+	claimed, err := s.Store.ClaimPresenter(ctx, roomID, participantID)
+	if err != nil {
+		return err
 	}
-	return s.Store.UpdateRoomStatus(ctx, roomID, status)
+	if !claimed {
+		return ErrAlreadyPresenting
+	}
+	return s.Store.UpdateRoomStatus(ctx, roomID, models.RoomStatusPresenting)
+}
+
+// StopPresenting releases the slot. No permission check: anyone able to
+// claim it can give it up, and a participant who has lost presenter rights
+// mid-share still needs to be able to stop.
+func (s *Service) StopPresenting(ctx context.Context, roomID, participantID string) error {
+	if err := s.Store.ReleasePresenter(ctx, roomID, participantID); err != nil {
+		return err
+	}
+	return s.Store.UpdateRoomStatus(ctx, roomID, models.RoomStatusWaiting)
 }
 
 func (s *Service) KickParticipant(ctx context.Context, actorRole models.ParticipantRole, targetParticipantID string) error {
 	if !Can(actorRole, ActionKick) {
 		return ErrForbidden
+	}
+	if err := s.Store.ReleasePresenterForParticipant(ctx, targetParticipantID); err != nil {
+		return err
 	}
 	if err := s.Store.UpdateParticipantStatus(ctx, targetParticipantID, models.ParticipantKicked); err != nil {
 		return err

@@ -24,6 +24,9 @@ node local-mesh.mjs || fail=1
 echo ""
 echo "### Local room capacity ###"
 python3 local-capacity.py || fail=1
+echo ""
+echo "### One presenter at a time ###"
+python3 single-presenter.py || fail=1
 
 echo ""
 if [ "$fail" -eq 0 ]; then
