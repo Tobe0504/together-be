@@ -225,8 +225,28 @@ func (s *Service) LeaveRoom(ctx context.Context, participantID string) error {
 	return s.Store.UpdateParticipantStatus(ctx, participantID, models.ParticipantDisconnected)
 }
 
+// ListParticipants returns only people currently in the room.
+//
+// Filtered here rather than left to the client because this is what "who is
+// in this room" means to every caller. Disconnected and kicked rows are
+// kept in the database as history, but a client rendering them produces
+// ghosts — someone who refreshed appearing twice, or a person who left
+// hours ago still listed. That's belt-and-braces alongside the disconnect
+// handler actually working: if a close is ever missed (a killed process, a
+// dropped network with no close frame), a stale row still can't surface as
+// a phantom participant.
 func (s *Service) ListParticipants(ctx context.Context, roomID string) ([]models.RoomParticipant, error) {
-	return s.Store.ListParticipants(ctx, roomID)
+	all, err := s.Store.ListParticipants(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	live := make([]models.RoomParticipant, 0, len(all))
+	for _, p := range all {
+		if p.Status == models.ParticipantConnected {
+			live = append(live, p)
+		}
+	}
+	return live, nil
 }
 
 func (s *Service) EndRoom(ctx context.Context, roomID string, actorRole models.ParticipantRole) error {
